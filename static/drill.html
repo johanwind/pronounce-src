@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Drill</title>
+<style>
+:root {
+  --bg: #f6f3ee; --card: #fffdf9; --ink: #23201c; --muted: #7a7268; --line: #e4ddd2;
+  --accent: #2f6f5e; --accent-ink: #fff; --rec: #c2412d;
+  --good: #2f6f5e; --ok: #b7791f; --bad: #c2412d; --okbg: #f7ecd6; --badbg: #f8dcd5; --chip: #efe9df;
+  --you: #b7791f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1917; --card: #23221f; --ink: #ece7df; --muted: #9a9288; --line: #36332e;
+    --accent: #6fbfa6; --accent-ink: #10201b; --rec: #ef7a63;
+    --good: #6fbfa6; --ok: #e3b15a; --bad: #ef7a63; --okbg: #3b3220; --badbg: #44241e; --chip: #2e2c28;
+    --you: #e3b15a;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font: 600 22px/1.2 Georgia, serif; margin: 0; }
+a { color: var(--accent); }
+.sub { color: var(--muted); font-size: 13px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.chip { border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; }
+.chip b { font-weight: 600; margin-right: 4px; }
+.chip small { color: var(--muted); margin-left: 4px; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip[aria-pressed="true"] small { color: inherit; opacity: .8; }
+.label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin-top: 14px; }
+.card.rec { border-color: var(--rec); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rec) 25%, transparent); }
+.grid { display: grid; grid-template-columns: 1fr 340px; gap: 18px; }
+#word { font: 600 44px/1.1 Georgia, serif; margin: 0; }
+#ipa { font-size: 18px; color: var(--muted); margin-top: 4px; }
+#ipa .t { color: var(--accent); font-weight: 700; border-bottom: 2px solid var(--accent); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+button { font: inherit; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); padding: 7px 12px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.recbtn { background: var(--rec); border-color: var(--rec); color: #fff; font-weight: 600; }
+button:disabled { opacity: .45; cursor: default; }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; opacity: .7; margin-left: 6px; }
+label.tog { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+#meter { width: 90px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+#meter > i { display: block; height: 100%; width: 0; background: var(--rec); }
+#score { font: 600 40px/1 Georgia, serif; }
+#verdict { font-size: 15px; margin-top: 4px; }
+.bars { margin-top: 10px; }
+.bar { display: grid; grid-template-columns: 70px 1fr 42px; align-items: center; gap: 8px; font-size: 13px; margin: 3px 0; }
+.bar .track { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--muted); }
+.bar.target .fill { background: var(--accent); }
+.bar.target { font-weight: 600; }
+button.mini { padding: 0 6px; font-size: 10px; line-height: 18px; border-radius: 5px; margin-left: 5px; vertical-align: 1px; }
+.bar { grid-template-columns: 120px 1fr 42px; }
+#hint { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--okbg); font-size: 14px; }
+#map svg { width: 100%; height: auto; display: block; }
+.strip { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
+.strip span { font-size: 11px; padding: 2px 6px; border-radius: 5px; background: var(--chip); }
+.strip span.g { background: color-mix(in srgb, var(--good) 30%, transparent); }
+.strip span.b { background: var(--badbg); }
+.msg { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--okbg); font-size: 14px; }
+.msg.err { background: var(--badbg); }
+.hidden { display: none !important; }
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: s 1s linear infinite; vertical-align: -2px; }
+@keyframes s { to { transform: rotate(360deg); } }
+input[type=text] { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 5px 8px; width: 140px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } #word { font-size: 36px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sound Drill</h1>
+    <a href="/">← Back to reading</a>
+  </header>
+  <p class="sub">Listen to the model voices, say the word, then compare. The map shows where your sound landed and where the model voices are; move toward them.</p>
+
+  <div class="label">Your weakest sounds</div>
+  <div class="chips" id="weak"></div>
+  <div class="label">All sounds</div>
+  <div class="chips" id="sounds"></div>
+
+  <section class="card" id="card">
+    <div class="grid">
+      <div>
+        <p id="word">…</p>
+        <div id="ipa"></div>
+        <div class="row">
+          <button id="hearBtn">▶ Hear<kbd>H</kbd></button>
+          <button id="soundBtn" title="Just the target sound, cut out of the model's word">▶ Sound only<kbd>V</kbd></button>
+          <button class="primary" id="recBtn">● Say it<kbd>Space</kbd></button>
+          <div id="meter" class="hidden"><i></i></div>
+        </div>
+        <div class="row">
+          <button id="meBtn" disabled>▶ Me<kbd>Y</kbd></button>
+          <button id="mySoundBtn" disabled>▶ My sound<kbd>U</kbd></button>
+          <button id="bothBtn" disabled title="Your word, then the model's">▶ Me → model<kbd>B</kbd></button>
+        </div>
+        <div class="row">
+          <label class="tog"><input type="checkbox" id="autoCmp" checked> after each try, play me → model</label>
+          <label class="tog"><input type="checkbox" id="sameVoice"> always the same voice</label>
+        </div>
+        <div class="label">Words <span class="sub">(← → to switch)</span></div>
+        <div class="chips" id="words"></div>
+        <div class="label">Contrast pairs</div>
+        <div class="chips" id="pairs"></div>
+        <div class="row"><input type="text" id="custom" placeholder="any word…"><button id="customBtn">Drill this word</button></div>
+        <div id="msg" class="msg hidden"></div>
+      </div>
+      <div>
+        <div id="result" class="hidden">
+          <div id="score">–</div>
+          <div id="verdict"></div>
+          <div class="bars" id="bars"></div>
+          <div class="sub" id="length" style="margin-top:6px"></div>
+          <div id="hint" class="hidden"></div>
+        </div>
+        <div id="map"></div>
+        <div class="strip" id="strip"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let D = { sets: {}, examples: {}, positions: {}, target: null, word: null, ref: null, voiceIdx: 0,
+          bufs: {}, audio: null, rate: 16000, last: null, attempts: [], rec: null, busy: false };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+  return r.json();
+}
+function msg(t, err = false) { const m = $("msg"); if (!t) return m.classList.add("hidden"); m.innerHTML = t; m.classList.toggle("err", err); m.classList.remove("hidden"); }
+
+// ---------- audio playback (one at a time, cancellable sequences) ----------
+let actx = null, cur = null, seqId = 0;
+function ctx() { if (!actx) actx = new AudioContext(); return actx; }
+function stopAll() { seqId++; if (cur) { try { cur.onended = null; cur.stop(); } catch (e) {} cur = null; } }
+function playBuf(buf, t0 = 0, t1 = null) {
+  return new Promise((resolve) => {
+    const c = ctx();
+    const src = c.createBufferSource(); src.buffer = buf; src.connect(c.destination);
+    const start = Math.max(0, t0), dur = (t1 ?? buf.duration) - start;
+    src.onended = () => { if (cur === src) cur = null; resolve(); };
+    cur = src; src.start(0, start, Math.max(0.02, dur));
+  });
+}
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+async function refBuf(voice) {
+  const key = `${D.word}|${D.target}|${voice}`;
+  if (!D.bufs[key]) {
+    const ab = await (await fetch(`/api/drill/wav?word=${encodeURIComponent(D.word)}&target=${encodeURIComponent(D.target || "")}&voice=${voice}`)).arrayBuffer();
+    D.bufs[key] = await ctx().decodeAudioData(ab);
+  }
+  return D.bufs[key];
+}
+function nextVoice() {
+  const vs = D.ref.voices;
+  const v = vs[D.voiceIdx % vs.length];
+  if (!$("sameVoice").checked) D.voiceIdx++;
+  return v;
+}
+function myBuf() {
+  const b = ctx().createBuffer(1, D.audio.length, D.rate); b.copyToChannel(D.audio, 0); return b;
+}
+async function run(steps) {  // steps: array of async fns; cancelled by stopAll()
+  stopAll(); const id = seqId;
+  for (const s of steps) { if (id !== seqId) return; await s(); }
+}
+const PAD = 0.04;
+const FOREIGN_EX = { "u": "Spanish luz", "y": "French tu", "ø": "French peu" };
+async function playVariant(vowel) {
+  // the drilled word with another vowel swapped in, e.g. "look" said as l-uː-k
+  const key = `var|${D.word}|${D.wordTarget}|${vowel}`;
+  if (!D.bufs[key]) {
+    const ab = await (await fetch(`/api/drill/variant?word=${encodeURIComponent(D.word)}&target=${encodeURIComponent(D.wordTarget || "")}&vowel=${encodeURIComponent(vowel)}`)).arrayBuffer();
+    D.bufs[key] = await ctx().decodeAudioData(ab);
+  }
+  run([() => playBuf(D.bufs[key])]);
+}
+const hear = () => run([async () => { const v = nextVoice(); await playBuf(await refBuf(v.voice)); }]);
+const hearSound = () => run([async () => {
+  const v = nextVoice(); const b = await refBuf(v.voice);
+  await playBuf(b, v.seg[0] - PAD, v.seg[1] + PAD); await sleep(350); await playBuf(b, v.seg[0] - PAD, v.seg[1] + PAD);
+}]);
+const me = () => D.last && run([() => playBuf(myBuf(), ...D.last.word_span)]);
+const mySound = () => D.last && run([async () => {
+  const b = myBuf(); const [a, z] = D.last.seg;
+  await playBuf(b, a - PAD, z + PAD); await sleep(350); await playBuf(b, a - PAD, z + PAD);
+}]);
+const meThenModel = () => D.last && run([
+  () => playBuf(myBuf(), ...D.last.word_span), () => sleep(300),
+  async () => { const v = nextVoice(); await playBuf(await refBuf(v.voice)); }]);
+
+// ---------- choosing sound and word ----------
+function renderSounds(weak) {
+  $("weak").innerHTML = weak.length ? weak.map(w =>
+    `<button class="chip" data-t="${esc(w.phone)}"><b>${esc(w.phone)}</b>${esc(D.sets[w.phone].example)}<small>${Math.round(w.mean * 100)}%</small></button>`).join("")
+    : '<span class="sub">Read a few paragraphs first; your weakest sounds will show up here.</span>';
+  $("sounds").innerHTML = Object.entries(D.sets).map(([t, s]) =>
+    `<button class="chip" data-t="${esc(t)}"><b>${esc(t)}</b>${esc(s.example)}</button>`).join("");
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => chooseTarget(b.dataset.t));
+}
+function chooseTarget(t, word, wordTarget = null) {
+  D.target = t;
+  document.querySelectorAll("[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t === t));
+  const s = D.sets[t];
+  $("words").innerHTML = s.words.map(w => `<button class="chip" data-w="${esc(w)}">${esc(w)}</button>`).join("");
+  $("pairs").innerHTML = s.pairs.map(([a, b]) =>
+    `<button class="chip" data-w="${esc(a)}">${esc(a)}</button><span class="sub" style="align-self:center">vs</span><button class="chip" data-w="${esc(b)}" data-other="1">${esc(b)}</button>`).join('<span style="width:10px"></span>');
+  document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => chooseWord(b.dataset.w, !!b.dataset.other));
+  try { localStorage.setItem("drillTarget", t); } catch (e) {}
+  chooseWord(word || s.words[0], false, wordTarget);
+}
+async function chooseWord(w, otherSound = false, explicitTarget = null) {
+  stopAll();
+  // the second word of a contrast pair has a different vowel: drill its own first vowel
+  const target = explicitTarget ?? (otherSound ? "" : D.target);
+  D.word = w; D.last = null; D.audio = null; D.attempts = [];
+  document.querySelectorAll("[data-w]").forEach(b => b.setAttribute("aria-pressed", b.dataset.w === w && !!b.dataset.other === otherSound));
+  $("word").textContent = w;
+  $("ipa").innerHTML = '<span class="spin"></span>';
+  ["meBtn", "mySoundBtn", "bothBtn"].forEach(id => $(id).disabled = true);
+  $("result").classList.add("hidden"); $("strip").innerHTML = ""; msg("");
+  try {
+    const ref = await api(`/api/drill/ref?word=${encodeURIComponent(w)}&target=${encodeURIComponent(target)}`);
+    if (D.word !== w) return;
+    D.ref = ref; D.wordTarget = ref.target;
+    $("ipa").innerHTML = "/" + ref.phones.map((p, i) => i === ref.target_index ? `<span class="t">${esc(p)}</span>` : esc(p)).join(" ") + "/"
+      + ` <span class="sub">target: ${esc(ref.target)}${D.examples[ref.target] && D.examples[ref.target] !== w ? " as in " + esc(D.examples[ref.target]) : ""}</span>`;
+    drawMap();
+    prewarm(w);
+  } catch (e) { $("ipa").textContent = ""; msg("Couldn't prepare this word: " + esc(e.message), true); }
+}
+
+// the first use of a word takes a few seconds on the server; prepare the next ones
+let warming = false;
+async function prewarm(w) {
+  if (warming) return; warming = true;
+  try {
+    const words = [...document.querySelectorAll("#words [data-w]")].map(b => b.dataset.w);
+    const i = words.indexOf(w);
+    for (const nw of [words[(i + 1) % words.length], words[(i + 2) % words.length]]) {
+      if (nw && nw !== w) await fetch(`/api/drill/ref?word=${encodeURIComponent(nw)}&target=${encodeURIComponent(D.target || "")}`);
+    }
+  } catch (e) {} finally { warming = false; }
+}
+
+// ---------- recording with auto-stop ----------
+const WORKLET = `class Cap extends AudioWorkletProcessor {
+  process(inputs) { const ch = inputs[0][0]; if (ch) this.port.postMessage(ch.slice(0)); return true; } }
+registerProcessor('cap', Cap);`;
+async function startRec() {
+  if (D.busy || D.rec || !D.ref) return;
+  stopAll(); msg("");
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 } });
+    const c = new AudioContext();
+    await c.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" })));
+    const src = c.createMediaStreamSource(stream), node = new AudioWorkletNode(c, "cap");
+    const chunks = []; let t = 0, noise = null, noiseN = 0, speech = false, quiet = 0, level = 0;
+    node.port.onmessage = (e) => {
+      const ch = e.data; chunks.push(ch); t += ch.length / c.sampleRate;
+      let m = 0; for (const v of ch) m = Math.max(m, Math.abs(v)); level = Math.max(m, level * 0.85);
+      $("meter").firstElementChild.style.width = Math.min(100, level * 140) + "%";
+      if (t < 0.2) { noise = (noise ?? 0) + m; noiseN++; return; }
+      const thr = Math.max(0.04, 3 * (noise / Math.max(1, noiseN)));
+      if (m > thr) { speech = true; quiet = 0; } else if (speech) quiet += ch.length / c.sampleRate;
+      if ((speech && quiet > 0.55) || t > 4) stopRec();
+    };
+    src.connect(node);
+    D.rec = { stream, c, node, chunks };
+    $("card").classList.add("rec"); $("meter").classList.remove("hidden");
+    $("recBtn").className = "recbtn"; $("recBtn").innerHTML = "■ Stop<kbd>Space</kbd>";
+  } catch (e) { msg("Microphone unavailable: " + esc(e.message), true); }
+}
+function stopRec(cancel = false) {
+  const r = D.rec; if (!r) return; D.rec = null;
+  r.node.disconnect(); r.stream.getTracks().forEach(t => t.stop());
+  const rate = r.c.sampleRate; r.c.close();
+  $("card").classList.remove("rec"); $("meter").classList.add("hidden");
+  $("recBtn").className = "primary"; $("recBtn").innerHTML = "● Say it<kbd>Space</kbd>";
+  if (cancel) return;
+  let n = 0; for (const ch of r.chunks) n += ch.length;
+  const a = new Float32Array(n); let o = 0; for (const ch of r.chunks) { a.set(ch, o); o += ch.length; }
+  submit(a, rate);
+}
+async function submit(audio, rate) {
+  D.busy = true; $("recBtn").disabled = true;
+  try {
+    const word = D.word;
+    const d = await api(`/api/drill/attempt?word=${encodeURIComponent(word)}&target=${encodeURIComponent(D.wordTarget || "")}&rate=${rate}`,
+                        { method: "POST", body: audio.buffer });
+    if (word !== D.word) return;
+    if (d.error) { msg(esc(d.error), true); return; }
+    D.audio = audio; D.rate = rate; D.last = d; D.attempts.push(d);
+    ["meBtn", "mySoundBtn", "bothBtn"].forEach(id => $(id).disabled = false);
+    showResult(d);
+    if ($("autoCmp").checked) meThenModel();
+  } catch (e) { msg("Failed: " + esc(e.message), true); }
+  finally { D.busy = false; $("recBtn").disabled = false; }
+}
+
+// ---------- feedback ----------
+function showResult(d) {
+  const pct = Math.round(d.score * 100);
+  $("result").classList.remove("hidden");
+  $("score").innerHTML = `${pct}% <span style="font-size:20px">${esc(d.target)}</span>`;
+  $("score").style.color = pct >= 70 ? "var(--good)" : pct >= 45 ? "var(--ok)" : "var(--bad)";
+  const ex = (p) => D.examples[p] ? ` <span class="sub">(${esc(D.examples[p])})</span>` : "";
+  $("verdict").innerHTML = pct >= 70 ? "That's it. Now do it again, the same way." :
+    pct >= 45 ? `Close. Leaning toward <b>${esc(d.heard)}</b>${ex(d.heard)}.` : `Sounded more like <b>${esc(d.heard)}</b>${ex(d.heard)}.`;
+  const top = Object.entries(d.dist).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (!top.some(([p]) => p === d.target)) top.push([d.target, d.dist[d.target] || 0]);
+  const variants = new Set((D.ref && D.ref.variants) || []);
+  $("bars").innerHTML = top.map(([p, v]) => {
+    const label = D.examples[p] || FOREIGN_EX[p] || "";
+    const play = variants.has(p) ? `<button class="mini" data-var="${esc(p)}" title="Hear '${esc(D.word)}' with this vowel">▶</button>` : "";
+    return `<div class="bar ${p === d.target ? "target" : ""}"><span>${esc(p)} ${esc(label)}${play}</span>
+     <div class="track"><div class="fill" style="width:${Math.round(v * 100)}%"></div></div><span>${Math.round(v * 100)}%</span></div>`;
+  }).join("");
+  $("bars").querySelectorAll("[data-var]").forEach(b => b.onclick = () => playVariant(b.dataset.var));
+  // length: a drawn-out short vowel sounds like a different (tense) vowel
+  let lenTip = "";
+  if (d.ms && d.ref_ms) {
+    const r = d.ms / d.ref_ms;
+    $("length").innerHTML = `Length: you <b>${d.ms} ms</b> · model voices ${d.ref_ms} ms` +
+      (r > 1.6 ? ' <span style="color:var(--bad)">(much longer)</span>' : r < 0.6 ? ' <span style="color:var(--ok)">(much shorter)</span>' : "");
+    if (r > 1.6 && d.score < 0.85) lenTip = "keep the vowel short and steady, don't let the mouth close at the end";
+  }
+  const tips = [d.hint, lenTip].filter(Boolean);
+  $("hint").classList.toggle("hidden", !tips.length);
+  if (tips.length) $("hint").textContent = "Try: " + tips.join("; ") + ".";
+  $("strip").innerHTML = D.attempts.slice(-24).map((a, i) =>
+    `<span class="${a.score >= 0.7 ? "g" : a.score < 0.45 ? "b" : ""}" title="heard ${esc(a.heard)}">${Math.round(a.score * 100)}</span>`).join("");
+  drawMap();
+}
+function drawMap() {
+  const ref = D.ref;
+  if (!ref || !ref.is_vowel) { $("map").innerHTML = ref ? '<p class="sub">The vowel map is only for vowel targets; for consonants use the bars above and compare by ear.</p>' : ""; return; }
+  const W = 340, H = 260, m = 30;
+  // IPA trapezoid: front edge slants; x 0=front 1=back, y 0=close 1=open
+  const X = (x, y) => m + (W - 2 * m) * (0.28 * y + x * (1 - 0.28 * y));
+  const Y = (y) => m + (H - 2 * m) * y;
+  const P = ([x, y]) => [X(x, y), Y(y)];
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="vowel map">
+    <polygon points="${[[0,0],[1,0],[1,1],[0,1]].map(p => P(p).join(",")).join(" ")}" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+    <text x="${m}" y="16" font-size="10" fill="var(--muted)">front · tongue high</text>
+    <text x="${W - m}" y="16" font-size="10" fill="var(--muted)" text-anchor="end">back</text>
+    <text x="${W / 2}" y="${H - 6}" font-size="10" fill="var(--muted)" text-anchor="middle">jaw open ↓</text>`;
+  for (const [v, w] of Object.entries(D.examples)) {
+    const pos = D.positions[v]; if (!pos) continue;
+    const [x, y] = P(pos);
+    const isT = v === ref.target;
+    s += `<text x="${x}" y="${y + 4}" font-size="${isT ? 15 : 12}" text-anchor="middle" fill="${isT ? "var(--accent)" : "var(--muted)"}" font-weight="${isT ? 700 : 400}">${esc(v)}</text>
+          <text x="${x}" y="${y + 16}" font-size="9" text-anchor="middle" fill="var(--muted)">${esc(w)}</text>`;
+  }
+  for (const v of ref.voices) if (v.point) { const [x, y] = P(v.point); s += `<circle cx="${x}" cy="${y}" r="5" fill="var(--accent)" opacity=".55"><title>model voice ${esc(v.voice)}</title></circle>`; }
+  const pts = D.attempts.filter(a => a.point).slice(-8);
+  pts.forEach((a, i) => {
+    const [x, y] = P(a.point); const last = i === pts.length - 1;
+    if (i > 0) { const [px, py] = P(pts[i - 1].point); s += `<line x1="${px}" y1="${py}" x2="${x}" y2="${y}" stroke="var(--you)" stroke-width="1" opacity="${0.2 + 0.6 * i / pts.length}"/>`; }
+    s += `<circle cx="${x}" cy="${y}" r="${last ? 8 : 4}" fill="${last ? "none" : "var(--you)"}" stroke="var(--you)" stroke-width="${last ? 3 : 0}" opacity="${last ? 1 : 0.25 + 0.5 * i / pts.length}"><title>attempt ${D.attempts.indexOf(a) + 1}: ${Math.round(a.score * 100)}%</title></circle>`;
+  });
+  s += `</svg><div class="sub"><span style="color:var(--accent)">●</span> model voices &nbsp; <span style="color:var(--you)">◯</span> your last try (dots: earlier tries)</div>`;
+  $("map").innerHTML = s;
+}
+
+// ---------- wiring ----------
+$("hearBtn").onclick = hear; $("soundBtn").onclick = hearSound;
+$("meBtn").onclick = me; $("mySoundBtn").onclick = mySound; $("bothBtn").onclick = meThenModel;
+$("recBtn").onclick = () => D.rec ? stopRec() : startRec();
+$("customBtn").onclick = () => { const w = $("custom").value.trim(); if (w) { D.target && chooseWord(w); $("custom").blur(); } };
+$("custom").addEventListener("keydown", (e) => { if (e.key === "Enter") $("customBtn").onclick(); e.stopPropagation(); });
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest && e.target.closest("input[type=text]")) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.code === "Space") { e.preventDefault(); if (document.activeElement && document.activeElement.tagName === "BUTTON") document.activeElement.blur(); if (!e.repeat) (D.rec ? stopRec() : startRec()); return; }
+  if (e.code === "Escape") { if (D.rec) stopRec(true); stopAll(); return; }
+  if (D.rec || e.repeat) return;
+  const k = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key;
+  const words = [...document.querySelectorAll("#words [data-w]")].map(b => b.dataset.w);
+  const i = words.indexOf(D.word);
+  const act = { h: hear, v: hearSound, y: me, u: mySound, b: meThenModel,
+    ArrowRight: () => chooseWord(words[(i + 1) % words.length]),
+    ArrowLeft: () => chooseWord(words[(i - 1 + words.length) % words.length]) }[k];
+  if (act) { e.preventDefault(); act(); }
+});
+document.addEventListener("keyup", (e) => { if (e.code === "Space" && !(e.target.closest && e.target.closest("input[type=text]"))) e.preventDefault(); });
+
+(async () => {
+  const d = await api("/api/drill/sets");
+  D.sets = d.sets; D.examples = d.examples; D.positions = d.positions;
+  renderSounds(d.weak);
+  const qs = new URLSearchParams(location.search);
+  const asked = qs.get("target"), word = qs.get("word") || undefined;
+  let t = asked; try { t = t || localStorage.getItem("drillTarget"); } catch (e) {}
+  if (!t || !D.sets[t]) t = (d.weak[0] && d.weak[0].phone) || "ʊ";
+  // a word from the reading page may target a sound without its own word list (e.g. a flap)
+  chooseTarget(t, word, word && asked && !D.sets[asked] ? asked : null);
+})();
+</script>
+</body>
+</html>

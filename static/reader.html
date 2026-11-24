@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Read Aloud</title>
+<style>
+:root {
+  --bg: #f6f3ee; --card: #fffdf9; --ink: #23201c; --muted: #7a7268; --line: #e4ddd2;
+  --accent: #2f6f5e; --accent-ink: #fff; --rec: #c2412d;
+  --good: #2f6f5e; --ok: #b7791f; --bad: #c2412d; --okbg: #f7ecd6; --badbg: #f8dcd5;
+  --chip: #efe9df;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1917; --card: #23221f; --ink: #ece7df; --muted: #9a9288; --line: #36332e;
+    --accent: #6fbfa6; --accent-ink: #10201b; --rec: #ef7a63;
+    --good: #6fbfa6; --ok: #e3b15a; --bad: #ef7a63; --okbg: #3b3220; --badbg: #44241e;
+    --chip: #2e2c28;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font: 600 22px/1.2 Georgia, "Iowan Old Style", serif; margin: 0; letter-spacing: .2px; }
+.sub { color: var(--muted); font-size: 13px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; margin-top: 14px; }
+.card.rec { border-color: var(--rec); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rec) 25%, transparent); }
+#para { font: 21px/1.7 Georgia, "Iowan Old Style", "Charter", serif; margin: 0; }
+#paraSetup { margin: 0 0 10px; font-size: 14px; color: var(--muted); font-style: italic; }
+#paraSetup cite { font-style: normal; white-space: nowrap; }
+#para .w { border-radius: 4px; padding: 0 1px; cursor: default; }
+#para.scored .w { cursor: pointer; }
+#para .w.ok { background: var(--okbg); }
+#para .w.bad { background: var(--badbg); text-decoration: underline wavy var(--bad); text-underline-offset: 5px; text-decoration-thickness: 1px; }
+#para .w.na { color: var(--muted); }
+#para .w.sel { outline: 2px solid var(--accent); }
+#para .w.hes::before { content: "‖"; color: var(--bad); margin-right: 3px; font-size: 16px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+button { font: inherit; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+  padding: 8px 14px; cursor: pointer; }
+button:hover { filter: brightness(.97); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.recbtn { background: var(--rec); border-color: var(--rec); color: #fff; font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; opacity: .7; margin-left: 6px; }
+.spacer { flex: 1; }
+#timer { font: 600 15px ui-monospace, monospace; color: var(--rec); }
+#meter { width: 120px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+#meter > i { display: block; height: 100%; width: 0; background: var(--rec); transition: width .08s; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.tile b { display: block; font: 600 26px/1.1 Georgia, serif; }
+.tile span { color: var(--muted); font-size: 12px; }
+.tile em { font-style: normal; font-size: 12px; margin-left: 4px; }
+.up { color: var(--good); } .down { color: var(--bad); }
+h2 { font: 600 16px/1.3 Georgia, serif; margin: 26px 0 8px; display: flex; align-items: center; gap: 8px; }
+.badge { font: 500 11px system-ui; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.focus { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.fcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.fcard h3 { margin: 0 0 6px; font-size: 14px; }
+.fcard p { margin: 4px 0; font-size: 13px; }
+.fcard .ev { color: var(--muted); }
+.fcard .drill { font-family: Georgia, serif; font-size: 14px; }
+.summary { color: var(--muted); font-style: italic; margin: 4px 0 10px; }
+#pop { position: absolute; z-index: 10; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; box-shadow: 0 6px 24px rgba(0,0,0,.15); max-width: 340px; display: none; }
+#pop .ph { display: inline-block; text-align: center; margin: 2px 3px; font-size: 15px; }
+#pop .ph small { display: block; font-size: 10px; color: var(--muted); }
+#pop .ph.bad { color: var(--bad); font-weight: 600; }
+#pop .row { margin-top: 8px; }
+#pop button { padding: 4px 10px; font-size: 13px; }
+button.mini { padding: 0 7px; font-size: 11px; line-height: 20px; border-radius: 6px; vertical-align: 1px; margin-left: 4px; }
+table.areas { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.areas td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); width: 140px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+.bar.low > i { background: var(--bad); }
+#hist svg { width: 100%; height: 90px; display: block; }
+.legend { font-size: 12px; color: var(--muted); }
+.hidden { display: none !important; }
+#help { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+.helpbox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 24px; max-width: 460px; width: 100%; }
+.helpbox td { padding: 4px 10px 4px 0; font-size: 14px; vertical-align: top; }
+.helpbox kbd, p.sub kbd { margin-left: 0; }
+textarea { width: 100%; min-height: 110px; font: 16px/1.5 Georgia, serif; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); padding: 10px; }
+.msg { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--okbg); font-size: 14px; }
+.msg.err { background: var(--badbg); }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: s 1s linear infinite; vertical-align: -2px; }
+@keyframes s { to { transform: rotate(360deg); } }
+@media (max-width: 640px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .focus { grid-template-columns: 1fr; }
+  #para { font-size: 18px; }
+  .card { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Read Aloud</h1>
+    <div class="sub"><span data-t="tagline">Read the paragraph, see which sounds came out unclear, focus on three.</span><span id="drillLink" class="hidden"> · <a href="/drill" style="color:var(--accent)">Sound drill →</a></span></div>
+  </header>
+
+  <p class="sub hidden" id="hostedNote" data-t="hostedNote">Your recordings are scored and then discarded; nothing is stored on the server. Your progress is kept in this browser.</p>
+
+  <section class="card" id="card">
+    <p id="paraSetup" class="hidden"></p>
+    <p id="para" data-t="loading">Loading…</p>
+    <div id="customBox" class="hidden">
+      <textarea id="customText" data-tp="customPlaceholder" placeholder="Paste or type a paragraph (30–150 words works best)"></textarea>
+      <div class="row"><button class="primary" id="useCustom" data-t="useCustom">Use this text</button><button id="cancelCustom" data-t="cancel">Cancel</button></div>
+    </div>
+    <div class="row" id="controls">
+      <button class="primary" id="recBtn"></button>
+      <span id="recInfo" class="hidden"><span id="timer">0:00</span></span>
+      <div id="meter" class="hidden"><i></i></div>
+      <button id="hearBtn" data-t="hearBtn">▶ Hear it<kbd>H</kbd></button>
+      <button id="mineBtn" class="hidden" data-t="mineBtn" data-tt="mineTitle">▶ My reading<kbd>P</kbd></button>
+      <span class="spacer"></span>
+      <button id="newBtn" data-t="newBtn">New paragraph<kbd>⇧N</kbd></button>
+      <button id="customBtn" class="hidden" data-t="customBtn">Own text<kbd>T</kbd></button>
+      <button id="helpBtn" data-tt="shortcuts">?</button>
+    </div>
+    <div id="msg" class="msg hidden"></div>
+  </section>
+
+  <section id="results" class="hidden">
+    <div class="tiles" id="tiles"></div>
+    <div class="row">
+      <button id="againBtn" data-t="againBtn">↻ Read again<kbd>A</kbd></button>
+      <button class="primary" id="nextBtn" data-t="nextBtn">Next paragraph →<kbd>N</kbd></button>
+      <span class="sub" id="nextHint"></span>
+    </div>
+    <h2><span data-t="focusTitle">Focus on these</span> <span class="badge" id="focusSrc">from your stats</span></h2>
+    <p class="summary hidden" id="summary"></p>
+    <div class="focus" id="focus"></div>
+    <p class="sub" data-t="wordHint">Click a highlighted word (or step through them with <kbd>←</kbd> <kbd>→</kbd>) to see its sounds; <kbd>M</kbd> plays the model voice, <kbd>Y</kbd> your version.</p>
+  </section>
+
+  <section id="progress" class="hidden">
+    <h2 data-t="progress">Progress</h2>
+    <div class="card" id="hist" style="padding:14px 16px"></div>
+    <details style="margin-top:10px">
+      <summary class="sub" style="cursor:pointer" data-t="allAreas">All sound areas (last few readings)</summary>
+      <table class="areas" id="areas"></table>
+    </details>
+  </section>
+</main>
+<div id="pop"></div>
+<div id="help" class="hidden" role="dialog">
+  <div class="helpbox">
+    <h2 style="margin-top:0" data-t="shortcuts">Keyboard shortcuts</h2>
+    <table>
+      <tr><td><kbd data-t="spaceKey">Space</kbd></td><td data-t="kSpace">start / finish reading</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td data-t="kEsc">discard recording, stop sound, close popups</td></tr>
+      <tr><td><kbd>H</kbd></td><td data-t="kH">hear the paragraph (press again to stop)</td></tr>
+      <tr><td><kbd>P</kbd></td><td data-t="kP">play back your reading</td></tr>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td data-t="kArrows">previous / next unclear word</td></tr>
+      <tr><td><kbd>M</kbd> / <kbd>Y</kbd></td><td data-t="kMY">selected word: model voice / your version</td></tr>
+      <tr><td><kbd>B</kbd></td><td data-t="kB">selected word: model, then you</td></tr>
+      <tr id="drillKey" class="hidden"><td><kbd>D</kbd></td><td>drill the selected word's weakest sound (or open the drill page)</td></tr>
+      <tr><td><kbd>A</kbd></td><td data-t="kA">read the same paragraph again</td></tr>
+      <tr><td><kbd>N</kbd> / <kbd>⇧N</kbd></td><td data-t="kN">next paragraph (picked for your focus areas) / random paragraph</td></tr>
+      <tr id="customKey" class="hidden"><td><kbd>T</kbd></td><td data-t="kT">use your own text</td></tr>
+      <tr><td><kbd>?</kbd></td><td data-t="kHelp">show / hide this list</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+// The page's language: set by the server that serves it, or by tools/make_pages.py for the GitHub
+// Pages copies. Strings that are HTML (kbd tags) are marked by containing a tag.
+const LANG = window.PAGE_LANG || "en";
+const STRINGS = {
+  en: {
+    title: "Read Aloud",
+    tagline: "Read the paragraph, see which sounds came out unclear, focus on three.",
+    hostedNote: "Your recordings are scored and then discarded; nothing is stored on the server. Your progress is kept in this browser.",
+    loading: "Loading…",
+    customPlaceholder: "Paste or type a paragraph (30–150 words works best)",
+    useCustom: "Use this text", cancel: "Cancel",
+    recBtn: "● Read it<kbd>Space</kbd>", doneBtn: "■ Done<kbd>Space</kbd>",
+    hearBtn: "▶ Hear it<kbd>H</kbd>", mineBtn: "▶ My reading<kbd>P</kbd>", mineTitle: "Listen back to your last reading",
+    newBtn: "New paragraph<kbd>⇧N</kbd>", customBtn: "Own text<kbd>T</kbd>",
+    againBtn: "↻ Read again<kbd>A</kbd>", nextBtn: "Next paragraph →<kbd>N</kbd>",
+    focusTitle: "Focus on these", fromStats: "from your stats",
+    wordHint: "Click a highlighted word (or step through them with <kbd>←</kbd> <kbd>→</kbd>) to see its sounds; <kbd>M</kbd> plays the model voice, <kbd>Y</kbd> your version.",
+    progress: "Progress", allAreas: "All sound areas (last few readings)",
+    shortcuts: "Keyboard shortcuts", spaceKey: "Space",
+    kSpace: "start / finish reading", kEsc: "discard recording, stop sound, close popups",
+    kH: "hear the paragraph (press again to stop)", kP: "play back your reading",
+    kArrows: "previous / next unclear word", kMY: "selected word: model voice / your version",
+    kB: "selected word: model, then you", kA: "read the same paragraph again",
+    kN: "next paragraph (picked for your focus areas) / random paragraph", kT: "use your own text", kHelp: "show / hide this list",
+    loadFailed: "Couldn't load a paragraph: ",
+    micFailed: (e) => `Microphone unavailable: ${e}. Allow microphone access for this page and try again.`,
+    discarded: "Recording discarded.",
+    tooShort: "That was very short. Press Space, read the whole paragraph, then press Space again.",
+    listening: "Listening back…",
+    coldStart: " The scorer is still starting up after a quiet spell, so this first one takes up to half a minute.",
+    failed: "Analysis failed: ",
+    err: { silent: "Didn't hear anything. Check the microphone.",
+           short: "That recording is much shorter than the paragraph. Read the whole text, then press Space." },
+    clarity: "clarity", vsLast: " vs last time", wpm: "words / min · model voice ", wordsClear: "words clear",
+    hesitations: "mid-sentence hesitations (‖)",
+    incomplete: "It looks like the recording stopped before the end of the paragraph, so the last words may be scored unfairly.",
+    nothing: { area: "Nothing stands out", evidence: "Every sound area scored well.", tip: "Try reading a little faster while keeping every word clear." },
+    hearIt: "Hear it",
+    askingCoach: "asking the coach", coach: "coach (Haiku)", coachWrote: "Next paragraph was written for your focus areas.",
+    coachDown: "Coach unavailable: ", coachDownShort: " · coach unavailable", timedOut: "timed out",
+    heard: "heard", readAs: "read as", soundedLike: "sounded like", notScored: "not scored", noSounds: "no sounds",
+    model: "▶ Model<kbd>M</kbd>", you: "▶ You<kbd>Y</kbd>", stop: "■ Stop",
+    playFailed: "Couldn't play audio.", loadAudioFailed: "Couldn't load audio: ", noWordAudio: "No model audio for this word.",
+    noHistory: "Your clarity and speed over time will show here after a few readings.",
+    legend: (c, w) => `clarity (40–100%) &nbsp; <span>┅</span> words/min · last: ${c}% at ${w} wpm`,
+    sounds: "sounds", nextLoading: "Getting the next paragraph…",
+  },
+  nb: {
+    title: "Les høyt",
+    tagline: "Les teksten høyt, se hvilke ord som ble uklare, og få tre ting å øve på.",
+    hostedNote: "Opptakene dine blir vurdert og så slettet; ingenting lagres på serveren. Fremgangen din lagres i denne nettleseren.",
+    loading: "Laster …",
+    customPlaceholder: "Lim inn eller skriv en tekst (30–150 ord passer best)",
+    useCustom: "Bruk denne teksten", cancel: "Avbryt",
+    recBtn: "● Les høyt<kbd>Mellomrom</kbd>", doneBtn: "■ Ferdig<kbd>Mellomrom</kbd>",
+    hearBtn: "▶ Hør teksten<kbd>H</kbd>", mineBtn: "▶ Min lesing<kbd>P</kbd>", mineTitle: "Hør på din siste lesing",
+    newBtn: "Ny tekst<kbd>⇧N</kbd>", customBtn: "Egen tekst<kbd>T</kbd>",
+    againBtn: "↻ Les igjen<kbd>A</kbd>", nextBtn: "Neste tekst →<kbd>N</kbd>",
+    focusTitle: "Øv på dette", fromStats: "fra statistikken din",
+    wordHint: "Klikk på et markert ord (eller bla med <kbd>←</kbd> <kbd>→</kbd>) for å se hvordan det ble hørt; <kbd>M</kbd> spiller modellstemmen, <kbd>Y</kbd> din versjon.",
+    progress: "Fremgang", allAreas: "Alle lydområder (de siste lesingene)",
+    shortcuts: "Hurtigtaster", spaceKey: "Mellomrom",
+    kSpace: "start / avslutt lesingen", kEsc: "forkast opptaket, stopp lyden, lukk vinduer",
+    kH: "hør teksten (trykk igjen for å stoppe)", kP: "spill av lesingen din",
+    kArrows: "forrige / neste uklare ord", kMY: "valgt ord: modellstemmen / din versjon",
+    kB: "valgt ord: modellen, så deg", kA: "les den samme teksten igjen",
+    kN: "neste tekst (valgt for det du øver på) / tilfeldig tekst", kT: "bruk din egen tekst", kHelp: "vis / skjul denne listen",
+    loadFailed: "Kunne ikke hente en tekst: ",
+    micFailed: (e) => `Mikrofonen er ikke tilgjengelig: ${e}. Gi siden tilgang til mikrofonen og prøv igjen.`,
+    discarded: "Opptaket ble forkastet.",
+    tooShort: "Det var veldig kort. Trykk mellomrom, les hele teksten, og trykk mellomrom igjen.",
+    listening: "Lytter …",
+    coldStart: " Vurderingen starter opp etter en stund uten bruk, så denne første kan ta opptil et halvt minutt.",
+    failed: "Vurderingen mislyktes: ",
+    err: { silent: "Hørte ingenting. Sjekk mikrofonen.",
+           short: "Opptaket er mye kortere enn teksten. Les hele teksten, og trykk så mellomrom." },
+    clarity: "tydelighet", vsLast: " mot forrige gang", wpm: "ord / min · modellstemmen ", wordsClear: "tydelige ord",
+    hesitations: "nøling midt i setninger (‖)",
+    incomplete: "Det ser ut som opptaket stoppet før slutten av teksten, så de siste ordene kan ha fått urettferdig lav vurdering.",
+    nothing: { area: "Ingenting skiller seg ut", evidence: "Alle lydområdene fikk god vurdering.", tip: "Prøv å lese litt raskere og hold hvert ord tydelig." },
+    hearIt: "Hør",
+    askingCoach: "spør treneren", coach: "trener (Haiku)", coachWrote: "Neste tekst er skrevet for det du øver på.",
+    coachDown: "Treneren er ikke tilgjengelig: ", coachDownShort: " · treneren er ikke tilgjengelig", timedOut: "tidsavbrudd",
+    heard: "hørt", readAs: "lest som", soundedLike: "hørtes ut som", notScored: "ikke vurdert", noSounds: "ingen lyder",
+    model: "▶ Modell<kbd>M</kbd>", you: "▶ Deg<kbd>Y</kbd>", stop: "■ Stopp",
+    playFailed: "Kunne ikke spille av lyden.", loadAudioFailed: "Kunne ikke hente lyden: ", noWordAudio: "Ingen modellstemme for dette ordet.",
+    noHistory: "Tydeligheten og tempoet ditt over tid vises her etter noen lesinger.",
+    legend: (c, w) => `tydelighet (40–100%) &nbsp; <span>┅</span> ord/min · sist: ${c}% med ${w} ord/min`,
+    sounds: "lyder", nextLoading: "Henter neste tekst …",
+  },
+};
+STRINGS.el = {
+  title: "Διάβασε δυνατά",
+  tagline: "Διάβασε το κείμενο δυνατά, δες ποιες λέξεις δεν ακούστηκαν καθαρά και πάρε τρία πράγματα για εξάσκηση.",
+  hostedNote: "Οι ηχογραφήσεις σου αξιολογούνται και μετά διαγράφονται· τίποτα δεν αποθηκεύεται στον διακομιστή. Η πρόοδός σου μένει σε αυτόν τον φυλλομετρητή.",
+  loading: "Φόρτωση…",
+  customPlaceholder: "Επικόλλησε ή γράψε ένα κείμενο (30–150 λέξεις είναι ιδανικά)",
+  useCustom: "Χρήση αυτού του κειμένου", cancel: "Ακύρωση",
+  recBtn: "● Διάβασε<kbd>Space</kbd>", doneBtn: "■ Τέλος<kbd>Space</kbd>",
+  hearBtn: "▶ Άκουσέ το<kbd>H</kbd>", mineBtn: "▶ Η ανάγνωσή μου<kbd>P</kbd>", mineTitle: "Άκου την τελευταία σου ανάγνωση",
+  newBtn: "Νέο κείμενο<kbd>⇧N</kbd>", customBtn: "Δικό μου κείμενο<kbd>T</kbd>",
+  againBtn: "↻ Ξανά<kbd>A</kbd>", nextBtn: "Επόμενο κείμενο →<kbd>N</kbd>",
+  focusTitle: "Εξάσκηση σε αυτά", fromStats: "από τα στατιστικά σου",
+  wordHint: "Πάτησε μια σημειωμένη λέξη (ή πήγαινε από τη μία στην άλλη με <kbd>←</kbd> <kbd>→</kbd>) για να δεις πώς ακούστηκε· το <kbd>M</kbd> παίζει τη φωνή-πρότυπο, το <kbd>Y</kbd> τη δική σου.",
+  progress: "Πρόοδος", allAreas: "Όλοι οι ήχοι (τελευταίες αναγνώσεις)",
+  shortcuts: "Συντομεύσεις πληκτρολογίου", spaceKey: "Space",
+  kSpace: "αρχή / τέλος ανάγνωσης", kEsc: "απόρριψη ηχογράφησης, διακοπή ήχου, κλείσιμο παραθύρων",
+  kH: "άκου το κείμενο (πάτησε ξανά για διακοπή)", kP: "άκου την ανάγνωσή σου",
+  kArrows: "προηγούμενη / επόμενη ασαφής λέξη", kMY: "επιλεγμένη λέξη: φωνή-πρότυπο / η δική σου εκδοχή",
+  kB: "επιλεγμένη λέξη: πρότυπο, μετά εσύ", kA: "διάβασε το ίδιο κείμενο ξανά",
+  kN: "επόμενο κείμενο (διαλεγμένο για όσα εξασκείς) / τυχαίο κείμενο", kT: "χρησιμοποίησε δικό σου κείμενο", kHelp: "εμφάνιση / απόκρυψη αυτής της λίστας",
+  loadFailed: "Δεν φορτώθηκε κείμενο: ",
+  micFailed: (e) => `Το μικρόφωνο δεν είναι διαθέσιμο: ${e}. Επίτρεψε στη σελίδα να χρησιμοποιεί το μικρόφωνο και δοκίμασε ξανά.`,
+  discarded: "Η ηχογράφηση απορρίφθηκε.",
+  tooShort: "Ήταν πολύ σύντομο. Πάτησε Space, διάβασε όλο το κείμενο και πάτησε ξανά Space.",
+  listening: "Ακούω…",
+  coldStart: " Η αξιολόγηση ξεκινά ξανά μετά από ώρα αδράνειας, οπότε η πρώτη μπορεί να πάρει έως μισό λεπτό.",
+  failed: "Η αξιολόγηση απέτυχε: ",
+  err: { silent: "Δεν ακούστηκε τίποτα. Έλεγξε το μικρόφωνο.",
+         short: "Η ηχογράφηση είναι πολύ πιο σύντομη από το κείμενο. Διάβασε όλο το κείμενο και μετά πάτησε Space." },
+  clarity: "καθαρότητα", vsLast: " σε σχέση με την προηγούμενη", wpm: "λέξεις / λεπτό · φωνή-πρότυπο ", wordsClear: "καθαρές λέξεις",
+  hesitations: "διστακτικές παύσεις μέσα στην πρόταση (‖)",
+  incomplete: "Φαίνεται ότι η ηχογράφηση σταμάτησε πριν από το τέλος του κειμένου, οπότε οι τελευταίες λέξεις μπορεί να βαθμολογήθηκαν άδικα.",
+  nothing: { area: "Τίποτα δεν ξεχωρίζει", evidence: "Όλοι οι ήχοι πήραν καλή βαθμολογία.", tip: "Δοκίμασε να διαβάσεις λίγο πιο γρήγορα, κρατώντας κάθε λέξη καθαρή." },
+  hearIt: "Άκουσέ το",
+  askingCoach: "ρωτάω τον προπονητή", coach: "προπονητής (Haiku)", coachWrote: "Το επόμενο κείμενο γράφτηκε για όσα εξασκείς.",
+  coachDown: "Ο προπονητής δεν είναι διαθέσιμος: ", coachDownShort: " · ο προπονητής δεν είναι διαθέσιμος", timedOut: "λήξη χρόνου",
+  heard: "ακούστηκε", readAs: "διαβάστηκε ως", soundedLike: "ακούστηκε σαν", notScored: "χωρίς βαθμολογία", noSounds: "χωρίς ήχους",
+  model: "▶ Πρότυπο<kbd>M</kbd>", you: "▶ Εσύ<kbd>Y</kbd>", stop: "■ Διακοπή",
+  playFailed: "Δεν ήταν δυνατή η αναπαραγωγή.", loadAudioFailed: "Δεν φορτώθηκε ο ήχος: ", noWordAudio: "Δεν υπάρχει ήχος-πρότυπο για αυτή τη λέξη.",
+  noHistory: "Η καθαρότητα και η ταχύτητά σου με τον καιρό θα εμφανιστούν εδώ μετά από μερικές αναγνώσεις.",
+  legend: (c, w) => `καθαρότητα (40–100%) &nbsp; <span>┅</span> λέξεις/λεπτό · τελευταία: ${c}% με ${w} λέξεις/λεπτό`,
+  sounds: "ήχοι", nextLoading: "Φορτώνει το επόμενο κείμενο…",
+};
+const T = STRINGS[LANG] || STRINGS.en;
+function applyStrings() {
+  document.documentElement.lang = LANG;
+  document.title = T.title;
+  $("title").textContent = T.title;
+  document.querySelectorAll("[data-t]").forEach(el => { el.innerHTML = T[el.dataset.t]; });
+  document.querySelectorAll("[data-tt]").forEach(el => { el.title = T[el.dataset.tt]; });
+  document.querySelectorAll("[data-tp]").forEach(el => { el.placeholder = T[el.dataset.tp]; });
+  $("help").setAttribute("aria-label", T.shortcuts);
+  $("recBtn").innerHTML = T.recBtn;
+  $("focusSrc").textContent = T.fromStats;
+}
+applyStrings();
+
+let S = { text: "", rec: null, chunks: [], rate: 16000, audio: null, result: null, busy: false };
+
+// the server; a copy of this page hosted elsewhere (GitHub Pages) sets window.API_BASE
+const API = window.API_BASE || "";
+// a random id per browser, so a shared server keeps each reader's history apart
+let UID = "";
+try { UID = localStorage.getItem("uid") || ""; } catch (e) {}
+if (!/^[0-9a-f]{32}$/.test(UID)) {
+  UID = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join("");
+  try { localStorage.setItem("uid", UID); } catch (e) {}
+}
+// The English, Norwegian and Greek pages share one origin (johanwind.github.io), so each language keeps
+// its readings under its own key. Before that, both used "history": the Norwegian page takes
+// its own readings out of it once (Norwegian passages all contain æ, ø or å).
+const HISTORY_KEY = LANG === "en" ? "history" : "history_" + LANG;
+function backup() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (e) { return []; } }
+function saveBackup(entry) {
+  const h = backup(); h.push(entry);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(-60))); } catch (e) {}
+}
+try {
+  if (LANG === "nb" && localStorage.getItem(HISTORY_KEY) === null) {
+    const old = JSON.parse(localStorage.getItem("history") || "[]"), nb = (e) => /[æøå]/i.test(e.text || "");
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(old.filter(nb)));
+    if (old.some(nb)) localStorage.setItem("history", JSON.stringify(old.filter(e => !nb(e))));
+  }
+} catch (e) {}
+// Requests go one at a time. The hosted server is AWS Lambda, where each running copy serves
+// one request at a time: a second request while one is in flight would start (and wait for)
+// a second copy instead of sharing the first.
+let queue = Promise.resolve();
+function serial(fn) {
+  const p = queue.then(fn, fn);
+  queue = p.catch(() => {});
+  return p;
+}
+function api(path, opts = {}) { return serial(() => apiNow(path, opts)); }
+async function apiNow(path, opts = {}, retry = true) {
+  opts.headers = { ...(opts.headers || {}), "X-User": UID, "X-Backup": String(backup().length) };
+  const r = await fetch(API + path, opts);
+  if (r.status === 409 && !(await r.clone().json().catch(() => ({}))).restore) return { resend: true };
+  if (r.status === 409 && retry) {
+    // a fresh server (restart, or a new copy of it) doesn't know us yet: send our saved history
+    await fetch(API + "/api/restore", { method: "POST", headers: { "X-User": UID },
+                                  body: JSON.stringify({ history: backup() }) });
+    return apiNow(path, opts, false);
+  }
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+  return r.json();
+}
+function msg(text, err = false) {
+  const m = $("msg");
+  if (!text) { m.classList.add("hidden"); return; }
+  m.innerHTML = text; m.classList.toggle("err", err); m.classList.remove("hidden");
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+// ---------- paragraph ----------
+const WORD_RE = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;  // same as the server's (scoring.WORD_RE)
+function renderPara(text, words) {
+  // wrap each word in a span; words[] (if given) aligns 1:1 with WORD_RE matches
+  let html = "", last = 0, i = 0;
+  for (const m of text.matchAll(WORD_RE)) {
+    html += esc(text.slice(last, m.index));
+    let cls = "w";
+    if (words && words[i]) {
+      const w = words[i];
+      if (w.score === null) cls += " na";
+      else if (w.score < 0.5) cls += " bad";
+      else if (w.score < 0.75) cls += " ok";
+      if (w.hes) cls += " hes";
+    }
+    html += `<span class="${cls}" data-i="${i}">${esc(m[0])}</span>`;
+    last = m.index + m[0].length; i++;
+  }
+  html += esc(text.slice(last));
+  $("para").innerHTML = html;
+  $("para").classList.toggle("scored", !!words);
+}
+async function loadParagraph(kind, text) {
+  hidePop();
+  try {
+    const d = await api("/api/paragraph", { method: "POST", body: JSON.stringify({ kind, text }) });
+    stopPlayback();
+    S.text = d.text; S.result = null; S.audio = null; S.wordTimes = d.word_times || null;
+    $("paraSetup").innerHTML = d.setup ? `${esc(d.setup)} <cite>— ${esc(d.source)}</cite>` : (d.source ? `<cite>${esc(d.source)}</cite>` : "");
+    $("paraSetup").classList.toggle("hidden", !d.setup && !d.source);
+    $("mineBtn").classList.add("hidden");
+    renderPara(S.text);
+    $("results").classList.add("hidden");
+    msg("");
+  } catch (e) { msg(T.loadFailed + esc(e.message), true); }
+}
+
+// ---------- recording ----------
+const WORKLET = `class Cap extends AudioWorkletProcessor {
+  process(inputs) { const ch = inputs[0][0]; if (ch) this.port.postMessage(ch.slice(0)); return true; } }
+registerProcessor('cap', Cap);`;
+async function startRec() {
+  if (S.busy) return;
+  stopPlayback();
+  hidePop(); msg("");
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 } });
+    const ctx = new AudioContext();
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" })));
+    const src = ctx.createMediaStreamSource(stream);
+    const node = new AudioWorkletNode(ctx, "cap");
+    S.chunks = []; S.rate = ctx.sampleRate;
+    S.stream = S.hosted ? streamStart(ctx.sampleRate) : null;
+    let level = 0;
+    node.port.onmessage = (e) => {
+      S.chunks.push(e.data);
+      if (S.stream) S.stream.push(e.data);
+      let m = 0; for (const v of e.data) m = Math.max(m, Math.abs(v));
+      level = Math.max(m, level * 0.9);
+    };
+    src.connect(node);
+    const t0 = performance.now();
+    const tick = setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      $("timer").textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+      $("meter").firstElementChild.style.width = Math.min(100, level * 140) + "%";
+    }, 80);
+    S.rec = { stream, ctx, node, tick };
+    $("card").classList.add("rec");
+    $("recBtn").className = "recbtn"; $("recBtn").innerHTML = T.doneBtn;
+    $("recInfo").classList.remove("hidden"); $("meter").classList.remove("hidden");
+    $("results").classList.add("hidden");
+    renderPara(S.text);
+  } catch (e) {
+    msg(T.micFailed(esc(e.message)), true);
+  }
+}
+function stopRec(cancel = false) {
+  const r = S.rec; if (!r) return;
+  clearInterval(r.tick); r.node.disconnect(); r.stream.getTracks().forEach(t => t.stop()); r.ctx.close();
+  S.rec = null;
+  $("card").classList.remove("rec");
+  $("recBtn").className = "primary"; $("recBtn").innerHTML = T.recBtn;
+  $("recInfo").classList.add("hidden"); $("meter").classList.add("hidden");
+  if (cancel) { S.stream = null; msg(T.discarded); return; }
+  let n = 0; for (const c of S.chunks) n += c.length;
+  const audio = new Float32Array(n); let o = 0;
+  for (const c of S.chunks) { audio.set(c, o); o += c.length; }
+  S.audio = audio;
+  $("mineBtn").classList.remove("hidden");
+  analyse(audio, S.rate);
+}
+// The same box-filter conversion as to16k, done as the audio arrives (output sample i depends only
+// on input samples before (i+1)*ratio, so the result is identical to converting it all at the end).
+class Down16k {
+  constructor(rate) { this.ratio = rate / 16000; this.raw = new Float32Array(rate * 30); this.n = 0; this.done = 0; }
+  push(chunk) {
+    if (this.n + chunk.length > this.raw.length) {
+      const bigger = new Float32Array(Math.max(this.raw.length * 2, this.n + chunk.length));
+      bigger.set(this.raw.subarray(0, this.n)); this.raw = bigger;
+    }
+    this.raw.set(chunk, this.n); this.n += chunk.length;
+    const upto = Math.floor(this.n / this.ratio), out = new Float32Array(Math.max(0, upto - this.done));
+    for (let i = this.done; i < upto; i++) {
+      const a = Math.floor(i * this.ratio), b = Math.max(a + 1, Math.floor((i + 1) * this.ratio));
+      let sum = 0;
+      for (let j = a; j < b; j++) sum += this.raw[j];
+      out[i - this.done] = sum / (b - a);
+    }
+    this.done = upto;
+    return out;
+  }
+}
+// Hosted: send the recording to the server in pieces while it is being made, so the model has
+// mostly run by the time you press stop. Pieces go through the request queue like everything else.
+function streamStart(rate) {
+  const st = { rid: Math.random().toString(16).slice(2, 14), down: new Down16k(rate), parts: [], len: 0,
+               sent: 0, ok: true };
+  st.flush = () => {
+    if (!st.ok || st.sending) return;
+    const n = st.len - st.sent;
+    if (n < 16000 * 2) return;  // every 2 s of audio; the rest goes with the analyse request
+    const body = st.audio().slice(st.sent, st.len), offset = st.sent;
+    st.sending = true;
+    // st.sent is updated inside the queued job, so a later queued job (the final analyse) sees it
+    serial(async () => {
+      try {
+        const d = await apiNow(`/api/piece?rid=${st.rid}&offset=${offset}`, { method: "POST", body: body.buffer });
+        if (d.held === offset + body.length) st.sent = d.held; else st.ok = false;
+      } catch (e) { st.ok = false; }
+      finally { st.sending = false; }
+    });
+  };
+  st.push = (chunk) => { const o = st.down.push(chunk); if (o.length) { st.parts.push(o); st.len += o.length; } st.flush(); };
+  st.audio = () => {
+    if (st.parts.length > 1) { const all = new Float32Array(st.len); let o = 0; for (const p of st.parts) { all.set(p, o); o += p.length; } st.parts = [all]; }
+    return st.parts[0] || new Float32Array(0);
+  };
+  return st;
+}
+async function to16k(audio, rate) {
+  // plain averaging resampler: each output sample is the mean of the input samples it covers
+  // (a box filter, enough against aliasing for speech); no audio engine needed
+  if (rate === 16000) return audio;
+  const ratio = rate / 16000, n = Math.floor(audio.length / ratio), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = Math.floor(i * ratio), b = Math.min(audio.length, Math.max(a + 1, Math.floor((i + 1) * ratio)));
+    let sum = 0;
+    for (let j = a; j < b; j++) sum += audio[j];
+    out[i] = sum / (b - a);
+  }
+  return out;
+}
+async function analyse(audio, rate) {
+  if (audio.length < rate * 1.0) { msg(T.tooShort, true); return; }
+  S.busy = true; $("recBtn").disabled = true;
+  msg('<span class="spin"></span> ' + T.listening + (S.warm ? "" : T.coldStart));
+  try {
+    const st = S.stream; S.stream = null;
+    let d = null;
+    if (st && st.ok) {
+      // the server has the start of the recording (and has run the model on it): send the rest.
+      // Queued behind any piece still in flight, so st.sent is final when this runs.
+      d = await serial(async () => {
+        if (!st.ok) return { resend: true };
+        const all = st.audio();
+        return apiNow(`/api/analyse?rate=16000&rid=${st.rid}&offset=${st.sent}`, {
+          method: "POST", headers: { "X-Text": encodeURIComponent(S.text) }, body: all.slice(st.sent).buffer });
+      });
+    }
+    if (!d || d.resend) {
+      const up = st ? st.audio() : await to16k(audio, rate);  // 3x smaller upload; the scorer works at 16 kHz anyway
+      d = await api(`/api/analyse?rate=16000`, {
+        method: "POST", headers: { "X-Text": encodeURIComponent(S.text) }, body: up.buffer });
+    }
+    if (d.error) { msg(esc(T.err[d.code] || d.error), true); return; }
+    msg("");
+    showResult(d);
+  } catch (e) { msg(T.failed + esc(e.message), true); }
+  finally { S.busy = false; $("recBtn").disabled = false; }
+}
+
+// ---------- results ----------
+function delta(cur, prev, unit = "", higherBetter = true) {
+  if (prev == null || cur == null) return "";
+  const d = cur - prev; if (Math.abs(d) < 1) return "";
+  const good = (d > 0) === higherBetter;
+  return `<em class="${good ? "up" : "down"}">${d > 0 ? "+" : ""}${Math.round(d)}${unit}</em>`;
+}
+function showResult(d) {
+  S.result = d;
+  const st = d.stats, pv = d.previous && d.previous.stats;
+  // mark the word *after* each hesitation
+  const words = d.words.map((w, i) => ({ ...w, hes: i > 0 && (st.hesitations || []).some(h => h.before === w.word && h.after === d.words[i - 1].word) }));
+  renderPara(S.text, words);
+  $("tiles").innerHTML = `
+    <div class="tile"><b>${st.clarity ?? "–"}%${delta(st.clarity, pv && pv.clarity, "")}</b><span>${T.clarity}${d.previous ? T.vsLast : ""}</span></div>
+    <div class="tile"><b>${st.wpm}${delta(st.wpm, pv && pv.wpm, "")}</b><span>${T.wpm}${st.ref_wpm ?? "–"}</span></div>
+    <div class="tile"><b>${st.words_clear}/${st.words_scored}</b><span>${T.wordsClear}</span></div>
+    <div class="tile"><b>${(st.hesitations || []).length}</b><span>${T.hesitations}</span></div>`;
+  if (st.maybe_incomplete) msg(T.incomplete, true);
+  renderFocus(d.focus);
+  $("focusSrc").textContent = T.fromStats;
+  $("summary").classList.add("hidden");
+  $("nextHint").textContent = "";
+  $("results").classList.remove("hidden");
+  if (d.entry) saveBackup(d.entry);
+  if (d.coach !== false) pollCoach(d.id);
+  refreshState();
+}
+function drillLink(f) {
+  let ph = f.drill_phone;
+  if (!ph && S.result) {  // coach cards: borrow the phone from the matching stats card
+    const m = (S.result.focus || []).find(x => x.area === f.area);
+    ph = m && m.drill_phone;
+  }
+  return ph && S.drill ? ` <a href="/drill?target=${encodeURIComponent(ph)}" style="color:var(--accent);font-size:13px">Drill ${esc(ph)} →</a>` : "";
+}
+function renderFocus(items) {
+  $("focus").innerHTML = (items && items.length ? items : [{ ...T.nothing, drill: "" }])
+    .map(f => `<div class="fcard"><h3>${esc(f.area)}${drillLink(f)}</h3>
+      <p class="ev">${esc(f.evidence)}</p>${f.tip ? `<p>${esc(f.tip)}</p>` : ""}
+      ${f.drill ? `<p class="drill">${esc(f.drill)} <button class="mini" data-say="${esc(f.drill)}" title="${T.hearIt}">▶</button></p>` : ""}</div>`).join("");
+  $("focus").querySelectorAll("[data-say]").forEach(b => b.onclick = () => playTTS(b.dataset.say, 0.9, b));
+}
+async function pollCoach(id) {
+  const src = $("focusSrc");
+  src.innerHTML = `${T.fromStats} · <span class="spin"></span> ${T.askingCoach}`;
+  try {
+    let d;
+    for (let i = 0; i < 4; i++) {
+      d = await apiNow(`/api/coach?id=${id}&wait=30`);  // local only (no coach when hosted); long poll, not queued
+      if (!d.pending) break;
+    }
+    if (!S.result || S.result.id !== id) return;  // user moved on
+    if (d.ok) {
+      renderFocus(d.focus);
+      src.textContent = T.coach;
+      if (d.summary) { $("summary").textContent = d.summary; $("summary").classList.remove("hidden"); }
+      if (d.next_paragraph) $("nextHint").textContent = T.coachWrote;
+    } else {
+      src.textContent = T.fromStats;
+      src.title = T.coachDown + (d.error || T.timedOut);
+      if (d.error) src.textContent += T.coachDownShort;
+    }
+  } catch (e) { src.textContent = T.fromStats; }
+}
+
+// ---------- word popover ----------
+function hidePop() { $("pop").style.display = "none"; document.querySelectorAll(".w.sel").forEach(e => e.classList.remove("sel")); }
+$("para").addEventListener("click", (ev) => {
+  const el = ev.target.closest(".w"); if (!el || !S.result) return;
+  const w = S.result.words[+el.dataset.i]; if (!w) return;
+  hidePop(); el.classList.add("sel");
+  const phs = w.phones.map(p => {
+    const bad = p.norm !== null && p.norm < 0.5;
+    const sub = p.norm === null ? "–" : bad ? `${T.heard} ${esc(p.heard)}` : Math.round(p.norm * 100);
+    return `<span class="ph ${bad ? "bad" : ""}">${esc(p.phone)}<small>${sub}</small></span>`;
+  }).join("");
+  const pop = $("pop");
+  // Norwegian: the spelling that explained the audio better (a misreading if it's a different word)
+  const as = w.heard_as ? `<div class="sub">${w.slip ? T.readAs : T.soundedLike} <b>${esc(w.heard_as)}</b></div>` : "";
+  pop.innerHTML = `<div><b>${esc(w.word)}</b> <span class="sub">${w.score === null ? T.notScored : Math.round(w.score * 100) + "%"}</span></div>${as}
+    <div>${phs || `<span class="sub">${T.noSounds}</span>`}</div>
+    <div class="row"><button id="pModel">${T.model}</button><button id="pMe" ${S.audio && w.start != null ? "" : "disabled"}>${T.you}</button></div>`;
+  const r = el.getBoundingClientRect();
+  pop.style.display = "block";
+  pop.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = (window.scrollY + r.bottom + 8) + "px";
+  $("pModel").onclick = () => modelWord(+el.dataset.i, w.word, $("pModel"));
+  $("pMe").onclick = () => playMine(w.start - 0.12, w.end + 0.15, $("pMe"));
+  ev.stopPropagation();
+});
+document.addEventListener("click", (e) => { if (!e.target.closest("#pop") && !e.target.closest(".w")) hidePop(); });
+
+// One sound at a time. The button that started it turns into "■ Stop" until it ends.
+let playing = null;  // { stop, btn, label }
+function stopPlayback() {
+  const p = playing; if (!p) return;
+  playing = null;
+  try { p.stop(); } catch (e) {}
+  if (p.btn) p.btn.innerHTML = p.label;
+}
+function startPlayback(btn, starter) {
+  // pressing the button of the sound that's playing stops it
+  if (playing && btn && playing.btn === btn) { stopPlayback(); return; }
+  stopPlayback();
+  const p = { btn, label: btn ? btn.innerHTML : "", stop: () => {} };
+  playing = p;
+  if (btn) { const k = btn.querySelector("kbd"); btn.innerHTML = T.stop + (k ? k.outerHTML : ""); }
+  const done = () => { p.ended = true; if (playing === p) stopPlayback(); };
+  p.stop = starter(done);
+}
+const mp3Cache = {};  // hosted: text -> Promise<blob URL of its precomputed model voice>
+function hostedClip(text) {
+  return mp3Cache[text] = mp3Cache[text] || serial(() => fetch(API + `/api/tts?text=${encodeURIComponent(text)}`))
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.blob(); })
+    .then(b => URL.createObjectURL(b))
+    .catch(e => { delete mp3Cache[text]; throw e; });
+}
+function playTTS(text, speed = 1, btn = null) {
+  startPlayback(btn, (done) => {
+    // hosted: one precomputed recording per text, slowed down by the browser (pitch is kept)
+    const a = new Audio();
+    let stopped = false;
+    if (S.hosted) {
+      hostedClip(text).then(url => {
+        if (stopped) return;
+        a.src = url; a.playbackRate = speed; a.onloadedmetadata = () => { a.playbackRate = speed; };
+        a.play().catch(e => { if (stopped || e.name === "AbortError") return; done(); msg(T.playFailed + " " + esc(e.message), true); });
+      }).catch(e => { if (!stopped) { done(); msg(T.loadAudioFailed + esc(e.message), true); } });
+    } else a.src = API + `/api/tts?speed=${speed}&text=${encodeURIComponent(text)}`;
+    a.onended = done;
+    a.onerror = () => { if (stopped) return; done(); msg(T.playFailed, true); };
+    // play() rejects with AbortError when paused before it starts; that's a stop, not an error
+    if (!S.hosted) a.play().catch(e => { if (stopped || e.name === "AbortError") return; done(); msg(T.playFailed + " " + esc(e.message), true); });
+    return () => { stopped = true; a.onended = a.onerror = null; a.pause(); a.removeAttribute("src"); a.load(); };
+  });
+}
+const clipCache = {};  // text -> Promise<AudioBuffer>
+function modelWord(i, word, btn = null) {
+  if (!S.hosted) return playTTS(word, 0.85, btn);
+  // hosted: no TTS on the server; play the word's slice of the passage's model voice.
+  // Decoded in the page so the slice is sample-exact (seeking inside an MP3 is not).
+  const t = S.wordTimes && S.wordTimes[i];
+  if (!t || t[0] == null) { msg(T.noWordAudio, true); return; }
+  const text = S.text;
+  clipCache[text] = clipCache[text] || hostedClip(text)
+    .then(url => fetch(url)).then(r => r.arrayBuffer())
+    .then(b => new AudioContext().decodeAudioData(b))
+    .catch(e => { delete clipCache[text]; throw e; });
+  startPlayback(btn, (done) => {
+    let ctx = null, src = null, stopped = false;
+    const close = () => { if (ctx && ctx.state !== "closed") ctx.close().catch(() => {}); };
+    clipCache[text].then(buf => {
+      if (stopped) return;
+      ctx = new AudioContext();
+      const t0 = Math.max(0, t[0] - 0.1), t1 = Math.min(buf.duration, t[1] + 0.2);
+      src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+      src.onended = () => { close(); done(); };
+      src.start(0, t0, t1 - t0);
+    }).catch(e => { delete clipCache[text]; if (!stopped) { done(); msg(T.playFailed, true); } });
+    return () => { stopped = true; if (src) { src.onended = null; try { src.stop(); } catch (e) {} } close(); };
+  });
+}
+function playMine(t0, t1, btn = null) {
+  if (!S.audio) return;
+  startPlayback(btn, (done) => {
+    const ctx = new AudioContext();
+    const s = Math.max(0, Math.floor(t0 * S.rate)), e = Math.min(S.audio.length, Math.ceil(t1 * S.rate));
+    const buf = ctx.createBuffer(1, Math.max(1, e - s), S.rate);
+    buf.copyToChannel(S.audio.subarray(s, e), 0);
+    const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+    src.onended = () => { ctx.close(); done(); };
+    src.start();
+    return () => { src.onended = null; try { src.stop(); } catch (e) {} ctx.close(); };
+  });
+}
+
+// ---------- progress ----------
+function sparkline(hist) {
+  const pts = hist.filter(h => h.clarity != null);
+  if (pts.length < 2) return `<p class="sub" style="margin:0">${T.noHistory}</p>`;
+  const W = 800, H = 90, n = pts.length;
+  const x = i => 10 + i * (W - 20) / (n - 1);
+  const yc = v => H - 8 - (v - 40) / 60 * (H - 16);
+  const maxw = Math.max(...pts.map(p => p.wpm), 200), yw = v => H - 8 - v / maxw * (H - 16);
+  const line = (f, key) => pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${f(Math.max(40, p[key])).toFixed(1)}`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <path d="${line(yw, "wpm")}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <path d="${line(yc, "clarity")}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
+    <div class="legend"><span style="color:var(--accent)">━</span> ${T.legend(pts[n - 1].clarity, pts[n - 1].wpm)}</div>`;
+}
+async function refreshState() {
+  try {
+    const d = await api("/api/state");
+    S.drill = d.drill !== false;
+    $("drillLink").classList.toggle("hidden", !S.drill);
+    $("hostedNote").classList.toggle("hidden", !d.hosted);
+    S.hosted = !!d.hosted;
+    $("customBtn").classList.toggle("hidden", d.custom === false);
+    $("customKey").classList.toggle("hidden", d.custom === false);
+    $("drillKey").classList.toggle("hidden", !S.drill);
+    if (d.history.length) {
+      $("progress").classList.remove("hidden");
+      $("hist").innerHTML = sparkline(d.history);
+      $("areas").innerHTML = d.areas.map(a => `<tr><td>${esc(a.area)}</td>
+        <td><div class="bar ${a.mean < 0.75 ? "low" : ""}"><i style="width:${Math.round(a.mean * 100)}%"></i></div></td>
+        <td class="sub">${Math.round(a.mean * 100)}% · ${a.n} ${T.sounds}</td></tr>`).join("");
+    }
+  } catch (e) { /* server restarting; ignore */ }
+}
+
+// ---------- wiring ----------
+$("recBtn").onclick = () => S.rec ? stopRec() : startRec();
+$("hearBtn").onclick = () => playTTS(S.text, 1, $("hearBtn"));
+$("mineBtn").onclick = () => playMine(0, S.audio ? S.audio.length / S.rate : 0, $("mineBtn"));
+$("newBtn").onclick = () => loadParagraph("random");
+$("againBtn").onclick = () => { renderPara(S.text); $("results").classList.add("hidden"); msg(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
+$("nextBtn").onclick = () => { msg(T.nextLoading); loadParagraph("next"); window.scrollTo({ top: 0, behavior: "smooth" }); };
+$("customBtn").onclick = () => { $("customBox").classList.remove("hidden"); $("para").classList.add("hidden"); $("controls").classList.add("hidden"); $("customText").focus(); };
+$("cancelCustom").onclick = () => { $("customBox").classList.add("hidden"); $("para").classList.remove("hidden"); $("controls").classList.remove("hidden"); };
+$("useCustom").onclick = async () => { const t = $("customText").value; $("cancelCustom").onclick(); if (t.trim()) await loadParagraph("custom", t); };
+function selectWord(dir) {
+  if (!S.result) return;
+  const ws = S.result.words;
+  const flagged = ws.map((w, i) => i).filter(i => ws[i].score !== null && ws[i].score < 0.75);
+  if (!flagged.length) return;
+  const cur = document.querySelector("#para .w.sel");
+  const ci = cur ? +cur.dataset.i : (dir > 0 ? -1 : ws.length);
+  let ni = dir > 0 ? flagged.find(i => i > ci) : [...flagged].reverse().find(i => i < ci);
+  if (ni === undefined) ni = dir > 0 ? flagged[0] : flagged[flagged.length - 1];  // wrap around
+  const el = document.querySelector(`#para .w[data-i="${ni}"]`);
+  el.click();
+  el.scrollIntoView({ block: "nearest" });
+}
+function selectedWord() {
+  const el = document.querySelector("#para .w.sel");
+  return el && S.result ? S.result.words[+el.dataset.i] : null;
+}
+function toggleHelp(show) {
+  const h = $("help");
+  h.classList.toggle("hidden", show === undefined ? !h.classList.contains("hidden") : !show);
+}
+$("help").addEventListener("click", (e) => { if (e.target.id === "help") toggleHelp(false); });
+$("helpBtn").onclick = () => toggleHelp();
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest && e.target.closest("textarea, input")) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;  // leave browser shortcuts alone
+  const helpOpen = !$("help").classList.contains("hidden");
+  const visible = (id) => !$(id).classList.contains("hidden") && !$(id).closest(".hidden");
+  if (e.code === "Space") {
+    e.preventDefault();
+    // a focused button would also "click" on Space and toggle a second time
+    if (document.activeElement && document.activeElement.tagName === "BUTTON") document.activeElement.blur();
+    if (!e.repeat) (S.rec ? stopRec() : startRec());
+    return;
+  }
+  if (e.code === "Escape") { if (S.rec) stopRec(true); stopPlayback(); hidePop(); toggleHelp(false); return; }
+  if (e.key === "?" || (e.code === "Slash" && e.shiftKey)) { e.preventDefault(); toggleHelp(); return; }
+  if (S.rec || e.repeat || helpOpen) return;  // no other shortcuts while recording
+  const w = selectedWord();
+  // letters/digits by physical key, so Shift and keyboard layouts don't change them
+  let k = e.key;
+  if (/^Key[A-Z]$/.test(e.code)) k = e.shiftKey ? e.code.slice(3) : e.code.slice(3).toLowerCase();
+  else if (/^Digit[0-9]$/.test(e.code)) k = e.code.slice(5);
+  const act = {
+    h: () => playTTS(S.text, 1, $("hearBtn")),
+    p: () => S.audio && playMine(0, S.audio.length / S.rate, $("mineBtn")),
+    a: () => visible("results") && $("againBtn").click(),
+    n: () => $("nextBtn").click(),
+    N: () => loadParagraph("random"),
+    t: () => !S.hosted && $("customBtn").click(),
+    m: () => w && $("pModel").click(),
+    d: () => {
+      if (!S.drill) return;
+      if (!w) { location.href = "/drill"; return; }
+      const bad = w.phones.filter(p => p.norm !== null).sort((a, b) => a.norm - b.norm)[0];
+      location.href = `/drill?word=${encodeURIComponent(w.word.toLowerCase())}` + (bad ? `&target=${encodeURIComponent(bad.phone)}` : "");
+    },
+    y: () => w && S.audio && w.start != null && $("pMe").click(),
+    b: () => {
+      if (!w) return;
+      // model voice, then your version, back to back
+      modelWord(S.result.words.indexOf(w), w.word, null);
+      const p = playing;
+      const iv = setInterval(() => {
+        if (playing === p) return;
+        clearInterval(iv);
+        // only continue if the model voice finished on its own (not stopped with Esc)
+        if (p.ended && playing === null && selectedWord() === w && S.audio && w.start != null) playMine(w.start - 0.12, w.end + 0.15, null);
+      }, 50);
+    },
+    ArrowRight: () => selectWord(1),
+    ArrowLeft: () => selectWord(-1),
+  }[k];
+  if (act) { e.preventDefault(); act(); }
+});
+document.addEventListener("keyup", (e) => { if (e.code === "Space" && !(e.target.closest && e.target.closest("textarea, input"))) e.preventDefault(); });
+// Start-up, one request at a time (see serial): the passage first, so there is something to
+// read at once, then the progress panel, then keep the server busy until its model is loaded.
+// After a quiet spell the hosted server starts from cold (~20 s to load the model); this way
+// that happens while you read, not after you press stop.
+async function warmUp() {
+  for (let i = 0; i < 60 && !S.warm; i++) {
+    try { const d = await api("/api/warm?wait=3"); if (d.error) return; S.warm = d.ready; }
+    catch (e) { await new Promise(r => setTimeout(r, 2000)); }
+  }
+}
+loadParagraph("random").then(refreshState).then(warmUp);
+</script>
+</body>
+</html>

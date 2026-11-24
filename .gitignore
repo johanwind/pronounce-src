@@ -1,0 +1,16 @@
+# environments and caches
+.venv/
+__pycache__/
+.ruff_cache/
+.claude/settings.local.json
+
+# built outputs (dist/pages is its own repo: johanwind/pronounce)
+dist/
+
+# personal data, downloaded models and voices, generated audio (rebuild with tools/bank_audio.py)
+data/*
+!data/bank/
+data/bank/*
+!data/bank/candidates.jsonl
+!data/bank/judged.jsonl
+audio_*/

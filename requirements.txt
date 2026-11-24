@@ -1,0 +1,14 @@
+# Core (Greek and Norwegian). Python 3.12. A CUDA GPU is optional; CPU works, a bit slower.
+torch>=2.5
+torchaudio>=2.5
+transformers>=4.45
+huggingface-hub
+phonemizer-fork
+espeakng-loader
+piper-tts
+onnxruntime
+soundfile
+scipy
+numpy
+# English additionally needs the Kokoro voices:  pip install kokoro misaki[en]
+# tests/test_browser_mic.py needs:  pip install websocket-client  (and Chrome)
